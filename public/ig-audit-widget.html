@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Instagram Audit</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<style>
+  body{margin:0;padding:16px;background:#f6f7fb;font-family:system-ui,-apple-system,Segoe UI,Roboto}
+  .ig-audit-widget{font-family:inherit;max-width:420px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08);overflow:hidden}
+  .widget-header{background:linear-gradient(to right,#405DE6,#833AB4,#E1306C);color:#fff;padding:22px 18px;text-align:center}
+  .ig-icon{font-size:2rem}
+  .widget-body{padding:20px}
+  .form-group{margin-bottom:14px}
+  label{display:block;margin-bottom:6px;font-weight:600}
+  input{width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;background:#f8fafc}
+  .submit-btn{background:linear-gradient(to right,#405DE6,#833AB4,#E1306C);color:#fff;border:0;padding:14px;border-radius:10px;font-weight:600;width:100%;cursor:pointer}
+  .submit-btn.loading{color:transparent;position:relative}
+  .submit-btn.loading::after{content:"";position:absolute;inset:0;margin:auto;width:18px;height:18px;border:3px solid transparent;border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(1turn)}}
+  .success-message{display:none;background:#f0f9ff;border:1px solid #dbeafe;border-radius:12px;padding:16px;margin-top:12px}
+  .score-badge{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #dbeafe;border-radius:9999px;padding:6px 10px;font-weight:700}
+  .criteria{display:grid;gap:10px;margin-top:10px}
+  .criteria-item{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px}
+  .criteria-title{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
+  .score-bar{height:8px;background:#e5e7eb;border-radius:9999px;overflow:hidden}
+  .score-bar>span{display:block;height:100%;background:linear-gradient(to right,#405DE6,#833AB4);width:0%}
+  .muted{color:#6b7280}
+  .template{background:#fff;border:1px dashed #cbd5e1;border-radius:10px;padding:10px;margin-top:10px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+  <div class="ig-audit-widget" aria-live="polite">
+    <div class="widget-header">
+      <div class="ig-icon"><i class="fab fa-instagram"></i></div>
+      <h3>Free Instagram Audit</h3>
+      <p style="opacity:.9">Get a scored audit of your latest Reel</p>
+    </div>
+    <div class="widget-body">
+      <form id="audit-form" novalidate>
+        <div class="form-group">
+          <label for="username">Instagram Username</label>
+          <input id="username" placeholder="@yourusername" required />
+        </div>
+        <div class="form-group">
+          <label for="email">Email address</label>
+          <input id="email" type="email" placeholder="you@domain.com" required />
+        </div>
+        <input type="text" id="company" name="company" style="display:none" tabindex="-1" autocomplete="off" />
+        <button id="submit-button" class="submit-btn" type="submit"><span>Get Free Audit</span></button>
+      </form>
+
+      <div id="success-message" class="success-message">
+        <h4 style="margin:0 0 8px">Your Audit</h4>
+        <div id="overall"></div>
+        <div id="criteria"></div>
+        <div id="checklist"></div>
+        <div id="next-template"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Same origin because this file is hosted in the same domain as the API
+  const API_URL = "/api/ig-audit";
+
+  function postHeight() {
+    const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+    parent.postMessage({ type: "IG_AUDIT_HEIGHT", height: h }, "*");
+  }
+  window.addEventListener("load", postHeight);
+  new ResizeObserver(postHeight).observe(document.body);
+
+  document.addEventListener("DOMContentLoaded", function(){
+    const form = document.getElementById("audit-form");
+    const successEl = document.getElementById("success-message");
+    const overallEl = document.getElementById("overall");
+    const criteriaEl = document.getElementById("criteria");
+    const checklistEl = document.getElementById("checklist");
+    const templateEl = document.getElementById("next-template");
+    const submitButton = document.getElementById("submit-button");
+
+    form.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const honeypot = document.getElementById("company").value.trim();
+      if (honeypot) return;
+
+      if (!/^@[\w\.]+$/i.test(username)) return alert("Use a valid IG handle starting with @");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return alert("Enter a valid email");
+
+      submitButton.classList.add("loading");
+
+      try{
+        const resp = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, email })
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(()=>({}));
+          throw new Error(err.error || "Failed to generate audit");
+        }
+        const data = await resp.json();
+        renderAudit(data);
+        form.style.display = "none";
+        successEl.style.display = "block";
+        postHeight();
+      }catch(err){
+        alert(err.message);
+      }finally{
+        submitButton.classList.remove("loading");
+      }
+    });
+
+    function renderAudit(data){
+      const { audit, post } = data;
+      const overall = audit?.overall || { score: 0, verdict: "" };
+
+      overallEl.innerHTML = `
+        <div class="score-badge"><i class="fa-solid fa-star"></i> Overall <span style="margin-left:6px">${overall.score}/100</span></div>
+        <p style="margin:8px 0 6px">${overall.verdict || ""}</p>
+        <div style="font-size:.9rem;color:#334155">
+          <div><i class="fa-regular fa-clock"></i> ${post?.timestamp || "Unknown time"}</div>
+          ${post?.postUrl ? `<div><i class="fa-solid fa-link"></i> <a href="${post.postUrl}" target="_blank" rel="noopener noreferrer">View post</a></div>` : ""}
+        </div>
+      `;
+
+      criteriaEl.innerHTML = `<h4 style="margin:14px 0 6px">Criteria</h4><div class="criteria" id="criteria-grid"></div>`;
+      const grid = document.getElementById("criteria-grid");
+      (audit?.criteria || []).forEach(c=>{
+        const s = Math.max(0, Math.min(10, Number(c.score || 0)));
+        const el = document.createElement("div");
+        el.className = "criteria-item";
+        el.innerHTML = `
+          <div class="criteria-title"><span>${c.name}</span><span>${s.toFixed(1)}/10</span></div>
+          <div class="score-bar"><span style="width:${(s/10)*100}%"></span></div>
+          <div class="muted" style="margin-top:6px">${c.rationale || ""}</div>
+          ${c.examples?.length ? `<div class="muted" style="margin-top:6px"><i class="fa-regular fa-lightbulb"></i> ${c.examples.join(" • ")}</div>` : ""}
+        `;
+        grid.appendChild(el);
+      });
+
+      checklistEl.innerHTML = `<h4 style="margin:14px 0 6px">Checklist</h4><ul style="padding-left:0;margin:0;list-style:none"></ul>`;
+      const ul = checklistEl.querySelector("ul");
+      (audit?.checklist || []).forEach(it=>{
+        const li = document.createElement("li");
+        const done = !!it.done;
+        li.innerHTML = `<i class="fa-${done ? "solid" : "regular"} fa-square-check" style="color:${done ? "#10b981" : "#64748b"}"></i> <span>${it.item}</span>`;
+        ul.appendChild(li);
+      });
+
+      const t = audit?.next_post_template || { title: "", script: [] };
+      templateEl.innerHTML = `<h4 style="margin:14px 0 6px">Next Post Template</h4>
+        <div class="template"><strong>${t.title || ""}</strong>\n\n${(t.script || []).map((l,i)=>`${i+1}. ${l}`).join("\n")}</div>`;
+    }
+  });
+</script>
+</body>
+</html>
