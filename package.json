@@ -10,18 +10,28 @@
   },
   "dependencies": {
     "apify-client": "^2.15.1",
+    "aws-amplify": "^6.15.5",
     "next": "15.5.0",
     "openai": "^5.15.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.16.1",
+    "@aws-amplify/backend-cli": "^1.8.0",
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "aws-cdk-lib": "^2.204.0",
+    "constructs": "^10.4.2",
+    "esbuild": "^0.25.9",
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
-    "typescript": "^5"
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
